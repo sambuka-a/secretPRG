@@ -30,10 +30,12 @@ app.use(session({
 mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true, useUnifiedTopology: true});
 mongoose.set('useCreateIndex', true);
 
+
 const userSchema = new mongoose.Schema ({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: Array
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -95,11 +97,34 @@ app.get('/register', function (req, res) {
 });
 
 app.get('/secrets', function (req, res) {
+    User.find({'secret': {$ne: null}}, function (err, foundUsers) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUsers) {
+                res.render('secrets', {usersWithSecrets: foundUsers});
+            }
+        }
+    });
+});
+
+app.get('/submit', function (req, res) {
     if (req.isAuthenticated()) {
-        res.render('secrets');
+        res.render('submit');
     } else {
         res.redirect('/login');
     }
+});
+
+app.post('/submit', async function (req, res) {
+
+    try {
+        await User.findOneAndUpdate({_id: req.user.id}, {$push: {secret: req.body.secret}});
+        res.redirect('/secrets');
+    } catch (error) {
+        console.log(error);
+    }
+
 });
 
 app.get('/logout', function (req, res) {
