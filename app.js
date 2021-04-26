@@ -4,13 +4,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const { stringify } = require('qs');
-const app = express();
 const session = require('express-session');
 const passport = require('passport');
 const passportLocalMongoose = require('passport-local-mongoose');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate = require('mongoose-findorcreate');
+
+const app = express();
 
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
@@ -29,7 +29,7 @@ app.use(session({
 
 mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true, useUnifiedTopology: true});
 mongoose.set('useCreateIndex', true);
-
+mongoose.set('useFindAndModify', false);
 
 const userSchema = new mongoose.Schema ({
     email: String,
@@ -40,7 +40,6 @@ const userSchema = new mongoose.Schema ({
 
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
-
 
 const User = new mongoose.model("User", userSchema);
 
@@ -77,9 +76,6 @@ app.get('/', function (req, res) {
 app.get("/auth/google", 
     passport.authenticate("google", {scope: ['profile']})
 );
-
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile'] }));
 
 app.get('/auth/google/secrets', 
   passport.authenticate('google', { failureRedirect: '/login' }),
@@ -145,22 +141,24 @@ app.post('/register', function (req, res) {
     });
 });
 
-app.post('/login', 
-passport.authenticate('local', {failureRedirect: '/login'}),
-function (req, res) {
-    const user = new User ({
-        username: req.body.username,
-        password: req.body.password
-    });
+app.post("/login", function(req, res){
 
-    req.login(user, function (err) {
-        if (err) {
-            console.log(err);
-        } else {
-            res.redirect('/secrets');
-        }
+    const user = new User({
+      username: req.body.username,
+      password: req.body.password
     });
-});
+  
+    req.login(user, function(err){
+      if (err) {
+        console.log(err);
+      } else {
+        passport.authenticate("local")(req, res, function(){
+          res.redirect("/secrets");
+        });
+      }
+    });
+  
+  });
 
 app.listen(3000, function(){
     console.log("Server run on port 3000");
